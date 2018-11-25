@@ -81,7 +81,7 @@ void *connection_handler(void *client_fd){
 	int timeup = 1;
 	int rcvd = 0;
 
-	while(1){
+	while(client_fd){
 		if(timeup){
 			gettimeofday(&t1, NULL);
 			timeup = 0;
