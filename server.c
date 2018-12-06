@@ -11,7 +11,7 @@
 
 #define BUFFSIZE 15360
 #define MAXCONNECTIONS 5
-#define PORT 5000
+//#define PORT 6000
 
 void *connection_handler(void *client_fd);
 
@@ -36,8 +36,15 @@ int main(int argc, char *argv[]){
 	memset(&server,0,sizeof(server));
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons(PORT);
+	//server.sin_port = htons(PORT);
 
+	if(argc < 2){
+		printf("Not enough argumentes\n");
+		return 1;
+	}
+	if(argv[1]){
+		server.sin_port = htons(atoi(argv[1]));
+	}
 	/* Bind */
 	if(bind(server_fd, (struct sockaddr *)&server, sizeof(server))){
 		perror("bind failed");
