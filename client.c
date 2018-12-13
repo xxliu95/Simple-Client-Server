@@ -14,7 +14,7 @@
  * rate needs to be in KBps
  */
 
-//#define PORT 5000
+#define PORT 5000
 #define BUFFSIZE 1536
 
 int main(int argc, char *argv[]){
@@ -32,10 +32,6 @@ int main(int argc, char *argv[]){
 	double rate = 50000.0; //Default rate in Bps
 	long t1, t2;
 
-	if(argc < 4){
-		printf("Not enough arguments\n");
-		return 1;
-	}
 	/* Creation of the socket */
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0){
@@ -52,15 +48,11 @@ int main(int argc, char *argv[]){
 
 	server.sin_family = AF_INET;
 	memcpy(&server.sin_addr, hp->h_addr, hp->h_length);
+	server.sin_port = htons(PORT);
 	if(argv[2]){
-		server.sin_port = htons(atoi(argv[2]));
-	}else{
-		server.sin_port = htons(5000); //default port 5000
-		printf("Default port\n");
-	}
-
-	if(argv[3]){
 		rate = atoi(argv[3]) * 1000;
+	}else{
+		printf("default rate\n");
 	}
 
 	/* Connection */

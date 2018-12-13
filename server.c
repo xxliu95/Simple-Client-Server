@@ -11,9 +11,14 @@
 
 #define BUFFSIZE 15360
 #define MAXCONNECTIONS 5
-//#define PORT 6000
+#define PORT 5000
 
-void *connection_handler(void *client_fd);
+void *connection_handler(void *data);
+
+struct args{
+	struct sockaddr_in client;
+	int client_fd;
+};
 
 int main(int argc, char *argv[]){
 
@@ -23,8 +28,11 @@ int main(int argc, char *argv[]){
 	struct sockaddr_in server;
 	struct sockaddr_in client;
 	pthread_t threads[MAXCONNECTIONS];
+	char buff[BUFFSIZE];
 	int rc;
 	long t;
+
+
 
 	/* Creation of sockets */
 	server_fd = socket(AF_INET, SOCK_STREAM, 0); // ipv4 using TCP
@@ -36,15 +44,8 @@ int main(int argc, char *argv[]){
 	memset(&server,0,sizeof(server));
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
-	//server.sin_port = htons(PORT);
+	server.sin_port = htons(PORT);
 
-	if(argc < 2){
-		printf("Not enough argumentes\n");
-		return 1;
-	}
-	if(argv[1]){
-		server.sin_port = htons(atoi(argv[1]));
-	}
 	/* Bind */
 	if(bind(server_fd, (struct sockaddr *)&server, sizeof(server))){
 		perror("bind failed");
@@ -62,13 +63,19 @@ int main(int argc, char *argv[]){
 
 		/* Accept */
 		client_len = sizeof(client);
-		if((client_fd = accept(server_fd,(struct sockaddr *)(&client), (socklen_t *)(&client_len))) < 0){
+		if((client_fd = accept(server_fd,(struct sockaddr *)(&client),
+			(socklen_t *)(&client_len))) < 0){
 			perror("accept failed");
 			return 1;
-		}
-		if(pthread_create(&thread_id,NULL,(void *)(&connection_handler),(void *)(&client_fd)) < 0){
-			perror("thread creation failed");
-			return 1;
+		}else{
+			struct args *args = malloc(sizeof(struct args));
+			args->client = client;
+			args->client_fd = client_fd;
+
+			if(pthread_create(&thread_id,NULL,(void *)(&connection_handler),args) < 0){
+				perror("thread creation failed");
+				return 1;
+			}
 		}
 	}
 	return 0;
@@ -78,9 +85,14 @@ int main(int argc, char *argv[]){
  * Every thread handles one connection and
  * calculates the rate that it receives data
  */
-void *connection_handler(void *client_fd){
+void *connection_handler(void *data){
 
-	int fd = *((int *)client_fd);
+	struct args *args = (struct args*) data;
+	int client_fd = args->client_fd;
+	printf("%d\n", args->client_fd);
+
+	struct sockaddr_in client = args->client;
+	struct sockaddr_in src = client;
 	struct timeval t1, t2;
 	char buff[BUFFSIZE];
 	double dt = 0.0;
@@ -93,7 +105,7 @@ void *connection_handler(void *client_fd){
 			gettimeofday(&t1, NULL);
 			timeup = 0;
 		}
-		int rec = recv(fd, buff, sizeof(buff), 0);
+		int rec = recv(client_fd, buff, sizeof(buff), 0);
 		if(rec>0){
 			rcvd += rec; // counts received bytes
 			gettimeofday(&t2, NULL);
@@ -101,12 +113,14 @@ void *connection_handler(void *client_fd){
 		}
 		if(dt >= 1000000.0){
 			rate = rcvd*1000.0/dt;
-			printf("client = %d received = %d B rate = %5.5f KBps dt = %7.1f us.\n", fd, rcvd, rate, dt);
-			//printf("%d,%5.2f,%7.4f\n", rcvd, rate, dt);
+			printf("src %s:%d received = %d B rate = %5.5f KBps dt = %7.1f us.\n",
+				inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
+				ntohs(client.sin_port),
+				rcvd, rate, dt);
 			rcvd = 0;
 			timeup = 1;
 		}
 	}
-	printf("Client %d Disconnected\n",fd);
+	printf("Client %d Disconnected\n",client_fd);
 	pthread_exit(NULL);
 }
