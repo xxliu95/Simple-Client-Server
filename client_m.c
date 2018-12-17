@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 /*
- * Format ./client ip max
+ * Format ./client ip
  */
 
 #define PORT 5000
@@ -19,60 +19,87 @@
 int main (int argc, char *argv[]) {
 
 	/* Variables */
-	int max = 1;
 	struct hostent *hp;
+	struct sockaddr_in client;
 	struct sockaddr_in server;
 	char buff[BUFFSIZE];
 
+	int max = 1;
 	if (argv[2]) {
 		max = atoi(argv[2]);
 	}
-	int i, sock[max];
+	int i;
+	int sock[max], rec[max], rcvd[max];
+	struct timeval t1[max], t2[max];
+	double dt[max];
+	int timeup[max];
+	double rate[max];
+
+	/* Initialization of variables */
+	for (i = 0; i < max; i++) {
+		rcvd[0] = 0;
+		dt[i] = 0.0;
+		timeup[i] = 1;
+		rate[i] = 0.0;
+	}
 
 	hp = gethostbyname(argv[1]);
 	if (hp == 0) {
 		perror("gethostbyname failed");
-		return 1;
+		exit(1);
 	}
-	
+
 	memset(&server, '0', sizeof(server));
-	memset(buff, '0', BUFFSIZE);
 
 	server.sin_family = AF_INET;
 	memcpy(&server.sin_addr, hp->h_addr, hp->h_length);
 	server.sin_port = htons(PORT);
 
 	for (i = 0; i < max; i++) {
-		/* Creation of sockets */
+		/* Creation of the socket */
 		sock[i] = socket(AF_INET, SOCK_STREAM, 0);
 		if (sock[i] < 0) {
 			perror("socket failed");
-			return 1;
+			exit(1);
 		}
-
 		/* Connection */
 		if (connect(sock[i], (struct sockaddr *) &server, sizeof(server)) < 0) {
 			perror("connect failed");
 			close(sock[i]);
-			return 1;
+			exit(1);
 		}
 	}
 
 	/* Infinite loop */
-	printf("%d connections to %s\n", max, inet_ntop(AF_INET, &server.sin_addr, buff, sizeof(buff)));
-
 	while (1) {
-		for (i = 0; i < max; i++){
-			if (send(sock[i], buff, sizeof(buff), 0) < 0) {
-				perror("send failed");
-				close(sock[i]);
-				return 1;
+		for (i = 0; i < max; i++) {
+			if (timeup[i]) {
+				gettimeofday(&t1[i], NULL);
+				timeup[i] = 0;
+				rcvd[i] = 0;
 			}
+			rec[i] = recv(sock[i], buff,BUFFSIZE, 0);
+			if (rec[i] > 0) {
+				rcvd[i] += rec[i];
+				gettimeofday(&t2[i], NULL);
+				dt[i] = ((t2[i].tv_sec - t1[i].tv_sec)*1000000.0 + (t2[i].tv_usec - t1[i].tv_usec)); // in microseconds
+			}
+			if (dt[i] >= 1000000.0) {
+				rate[i] = rcvd[i]*1000.0/dt[i];
+
+				printf("handle: %d %d Bytes from %s rate = %5.5f KBps dt = %7.1f us.\n",
+					i+10, rcvd[i], inet_ntop(AF_INET, &server.sin_addr, buff, sizeof(buff)),
+					rate[i], dt[i]);
+
+				timeup[i] = 1;
+			}
+
 		}
-		sleep(1e-3);
+	}
+	printf("Disconnected\n");
+	for (i = 0; i < max; i++) {
+		close(sock[i]);
 	}
 
-	for (i = 0; i < max; i++)
-		close(sock[i]);
 	return 0;
 }
