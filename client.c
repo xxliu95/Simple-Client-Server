@@ -33,7 +33,7 @@ int main (int argc, char *argv[]) {
 	long t1, t2;
 
 	/* Creation of the socket */
-	sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		perror("socket failed");
 		return 1;
@@ -45,6 +45,8 @@ int main (int argc, char *argv[]) {
 		close(sock);
 		return 1;
 	}
+
+	memset(&server, '0', sizeof(server));
 
 	server.sin_family = AF_INET;
 	memcpy(&server.sin_addr, hp->h_addr, hp->h_length);

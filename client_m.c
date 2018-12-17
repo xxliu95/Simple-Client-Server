@@ -34,18 +34,21 @@ int main (int argc, char *argv[]) {
 		perror("gethostbyname failed");
 		return 1;
 	}
+	
+	memset(&server, '0', sizeof(server));
+	memset(buff, '0', BUFFSIZE);
+
+	server.sin_family = AF_INET;
+	memcpy(&server.sin_addr, hp->h_addr, hp->h_length);
+	server.sin_port = htons(PORT);
 
 	for (i = 0; i < max; i++) {
 		/* Creation of sockets */
-		sock[i] = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+		sock[i] = socket(AF_INET, SOCK_STREAM, 0);
 		if (sock[i] < 0) {
 			perror("socket failed");
 			return 1;
 		}
-
-		server.sin_family = AF_INET;
-		memcpy(&server.sin_addr, hp->h_addr, hp->h_length);
-		server.sin_port = htons(PORT);
 
 		/* Connection */
 		if (connect(sock[i], (struct sockaddr *) &server, sizeof(server)) < 0) {
