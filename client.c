@@ -30,6 +30,12 @@ int main (int argc, char *argv[]) {
 	double dt = 0.0;
 	double rate;
 	int rec, rcvd = 0;
+	int timeup = 1;
+
+	if (argc != 3) {
+		perror("not enough arguments");
+		exit(1);
+	}
 
 	/* Creation of the socket */
 	sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -58,6 +64,8 @@ int main (int argc, char *argv[]) {
 		exit(1);
 	}
 
+	/* Send Request */
+	strcpy(buff, argv[2]);
 	if (send(sock, buff, sizeof(buff), 0) < 0) {
 		perror("send failed");
 		close(sock);
@@ -67,10 +75,11 @@ int main (int argc, char *argv[]) {
 	/* Infinite loop */
 
 	while (1) {
+		if (timeup) {
+			gettimeofday(&t1, NULL);
+			timeup = 0;
+		}
 
-		gettimeofday(&t1, NULL);
-
-		again:
 		rec = recv(sock, buff,BUFFSIZE, 0);
 		if (rec > 0) {
 			rcvd += rec;
@@ -86,8 +95,7 @@ int main (int argc, char *argv[]) {
 				rate, dt);
 
 			rcvd = 0;
-		} else {
-			goto again;
+			timeup = 1;
 		}
 	}
 	printf("Disconnected\n");
