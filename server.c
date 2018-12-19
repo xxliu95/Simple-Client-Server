@@ -11,7 +11,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define BUFFSIZE 1514
+#define BUFFSIZE 1024
 #define MAXCONNECTIONS 100
 #define PORT 5000
 
@@ -82,28 +82,31 @@ int main (int argc, char *argv[]) {
 
 /*
  * Every thread handles one connection
-  */
+ */
 void *connection_handler (void *data) {
+
+	pthread_detach(pthread_self());
 
 	struct args *args = (struct args *)data;
 	int client_fd = args->client_fd;
-
 	struct sockaddr_in client = args->client;
 	char buff[BUFFSIZE];
+
+	free(data);
 
 	printf("Client %s:%d Connected\n",
 		inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
 		ntohs(client.sin_port));
 
-	while (client_fd) {
+	while (client_fd > 0) {
 		if (send(client_fd, buff, sizeof(buff), 0) < 0) {
 			printf("Client %s:%d Disconnected\n",inet_ntop(AF_INET,
 				&client.sin_addr, buff, sizeof(buff)), ntohs(client.sin_port));
 			close(client_fd);
-			pthread_exit(NULL);
+			break;
 		}
 	}
-	printf("Client %s:%d Disconnected\n",inet_ntop(AF_INET,
-		&client.sin_addr, buff, sizeof(buff)), ntohs(client.sin_port));
+	close(client_fd);
 	pthread_exit(NULL);
+	return 0;
 }
