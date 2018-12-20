@@ -20,8 +20,6 @@ void *connection_handler (void *data);
 struct args {
 	struct sockaddr_in client;
 	int client_fd;
-	int rate;
-	int handle;
 };
 
 int main (int argc, char *argv[]) {
@@ -33,8 +31,6 @@ int main (int argc, char *argv[]) {
 	struct sockaddr_in client;
 	pthread_t threads[MAXCONNECTIONS];
 	char buff[BUFFSIZE];
-	int rc;
-	long t;
 
 	int handle = 10;
 
@@ -60,11 +56,13 @@ int main (int argc, char *argv[]) {
 	listen(server_fd, MAXCONNECTIONS);
 
 	/* Script */
-
-	char command[100];
-	strcpy(command, "tc qdisc del dev lo root && tc qdisc add dev lo root handle 1: htb");
-	//strcpy(command, "tc qdisc del dev eth0 root && tc qdisc add dev eth0 root handle 1: htb default 10");
+	char command[200];
+	strcpy(command, "tc qdisc del dev lo root && tc qdisc add dev lo root handle 1: htb && \
+			tc class add dev lo parent 1: classid 1:1 htb rate 1Mbps ceil 1Mbps");
+	//strcpy(command, "tc qdisc del dev eth0 root && tc qdisc add dev eth0 root handle 1: htb && \
+	//		tc class add dev eth0 parent 1: classid 1:1 htb rate 1Mbps ceil 1Mbps");
 	system(command);
+	//printf("%s\n", command);
 
 
 	while (1) {
@@ -82,12 +80,25 @@ int main (int argc, char *argv[]) {
 			struct args *args = malloc(sizeof(struct args));
 
 			if (read(client_fd,buff,BUFFSIZE) >= 0) {
-				sprintf(command, "tc class add dev lo parent 1: classid 1:1 htb rate 1Mbps ceil 1Mbps");
-				system(command);
+
+				int req_rate = atoi(buff);
 				args->client = client;
 				args->client_fd = client_fd;
-				args->handle = handle++;
-				args->rate = atoi(buff);
+
+				sprintf(command, "tc class add dev lo parent 1:1 classid 1:%d htb rate %dkbps ceil %dkbps &&\
+				 		tc filter add dev lo protocol ip parent 1:0 prio 1 u32 \
+				 		match ip dst %s match ip dport %d 0xffff flowid 1:%d",
+						handle, req_rate, req_rate,
+						inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
+					 	ntohs(client.sin_port), handle);
+				system(command);
+
+				printf("Client %s:%d Connected. Rate %dkbps handle 1:%d\n",
+					inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
+					ntohs(client.sin_port),
+					req_rate, handle);
+
+				handle++;
 
 				if (pthread_create(&thread_id, NULL, (void *)(&connection_handler), args) < 0) {
 					perror("thread creation failed");
@@ -108,34 +119,13 @@ void *connection_handler (void *data) {
 
 	struct args *args = (struct args *)data;
 	int client_fd = args->client_fd;
-	int handle = args->handle;
-	int req_rate = args->rate;
 	struct sockaddr_in client = args->client;
 	char buff[BUFFSIZE];
 
-	printf("%d %d\n", handle, req_rate);
-
 	free(data);
 
-	printf("Client %s:%d Connected\n",
-		inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
-		ntohs(client.sin_port));
-
-
-	char command[200];
-
-	sprintf(command, "tc class add dev lo parent 1:1 classid 1:%d htb rate %dkbps ceil %dkbps &&\
-			tc filter add dev lo protocol ip parent 1:0 prio 1 u32\
-		 	match ip dst %s match ip dport %d 0xffff flowid 1:%d",
-			handle, req_rate, req_rate,
-			inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
-		 	ntohs(client.sin_port), handle);
-	//printf("%s\n", command);
-
-	system(command);
-
 	while (client_fd > 0) {
-		if (send(client_fd, buff, sizeof(buff), 0) < 0) {
+		if (send(client_fd, buff, sizeof(buff), MSG_NOSIGNAL) < 0) {
 			printf("Client %s:%d Disconnected\n",inet_ntop(AF_INET,
 				&client.sin_addr, buff, sizeof(buff)), ntohs(client.sin_port));
 			close(client_fd);

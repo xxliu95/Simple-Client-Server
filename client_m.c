@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 /*
- * Format ./client ip
+ * Format ./client ip max rate
  */
 
 #define PORT 5000
@@ -25,6 +25,12 @@ int main (int argc, char *argv[]) {
 	char buff[BUFFSIZE];
 
 	int max = 1;
+
+	if (argc != 4) {
+		perror("argument error");
+		exit(1);
+	}
+
 	if (argv[2]) {
 		max = atoi(argv[2]);
 	}
@@ -49,6 +55,8 @@ int main (int argc, char *argv[]) {
 		exit(1);
 	}
 
+
+
 	memset(&server, '0', sizeof(server));
 
 	server.sin_family = AF_INET;
@@ -62,6 +70,15 @@ int main (int argc, char *argv[]) {
 			perror("socket failed");
 			exit(1);
 		}
+
+		/* Send Request */
+		strcpy(buff, argv[3]);
+		if (send(sock[i], buff, sizeof(buff), 0) < 0) {
+			perror("send failed");
+			close(sock[i]);
+			exit(1);
+		}
+
 		/* Connection */
 		if (connect(sock[i], (struct sockaddr *) &server, sizeof(server)) < 0) {
 			perror("connect failed");
