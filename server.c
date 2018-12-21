@@ -33,6 +33,13 @@ int main (int argc, char *argv[]) {
 	char buff[BUFFSIZE];
 
 	int handle = 10;
+	//char iface[10] = "eth0";
+	char iface[10] = "lo";
+
+	/* Delete previous qdisc */
+	char command[200];
+	sprintf(command, "tc qdisc del dev %s root", iface);
+	system(command);
 
 	/* Creation of sockets */
 	server_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP); // ipv4 using TCP
@@ -56,11 +63,13 @@ int main (int argc, char *argv[]) {
 	listen(server_fd, MAXCONNECTIONS);
 
 	/* Script */
-	char command[200];
-	strcpy(command, "tc qdisc del dev lo root && tc qdisc add dev lo root handle 1: htb && \
-			tc class add dev lo parent 1: classid 1:1 htb rate 1Mbps ceil 1Mbps");
-	//strcpy(command, "tc qdisc del dev eth0 root && tc qdisc add dev eth0 root handle 1: htb && \
-	//		tc class add dev eth0 parent 1: classid 1:1 htb rate 1Mbps ceil 1Mbps");
+
+	if (argv[1]) {
+		strcpy(iface, argv[1]);
+	}
+	sprintf(command, "tc qdisc add dev %s root handle 1: htb && \
+			tc class add dev %s parent 1: classid 1:1 htb rate 1Mbps ceil 1Mbps",
+			iface, iface);
 	system(command);
 	//printf("%s\n", command);
 
@@ -85,10 +94,10 @@ int main (int argc, char *argv[]) {
 				args->client = client;
 				args->client_fd = client_fd;
 
-				sprintf(command, "tc class add dev lo parent 1:1 classid 1:%d htb rate %dkbps ceil %dkbps &&\
-				 		tc filter add dev lo protocol ip parent 1:0 prio 1 u32 \
+				sprintf(command, "tc class add dev %s parent 1:1 classid 1:%d htb rate %dkbps ceil %dkbps &&\
+				 		tc filter add dev %s protocol ip parent 1:0 prio 1 u32 \
 				 		match ip dst %s match ip dport %d 0xffff flowid 1:%d",
-						handle, req_rate, req_rate,
+						iface, handle, req_rate, req_rate, iface,
 						inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
 					 	ntohs(client.sin_port), handle);
 				system(command);
