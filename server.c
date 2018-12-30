@@ -68,7 +68,7 @@ int main (int argc, char *argv[])
 		strcpy(iface, argv[1]);
 	}
 	sprintf(command, "tc qdisc add dev %s root handle 1: htb && \
-			tc class add dev %s parent 1: classid 1:1 htb rate 1Mbps ceil 1Mbps",
+			tc class add dev %s parent 1: classid 1:1 htb rate 1Gbps ceil 1Gbps",
 			iface, iface);
 	system(command);
 	//printf("%s\n", command);

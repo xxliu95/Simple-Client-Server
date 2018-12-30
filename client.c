@@ -72,7 +72,8 @@ int main (int argc, char *argv[]) {
 	}
 
 	/* Infinite loop */
-
+	printf("Bytes,ip,rate,dt\n");
+	int i = 0;
 	while (1) {
 		if (timeup) {
 			gettimeofday(&t1, NULL);
@@ -89,10 +90,15 @@ int main (int argc, char *argv[]) {
 		if (dt >= 1000000.0) {
 			rate = rcvd*1000.0/dt;
 
+			printf("%d,%s,%5.6f,%7.0f\n",
+				rcvd, inet_ntop(AF_INET, &server.sin_addr, buff, sizeof(buff)),
+				rate, dt);
+			/*
 			printf("%d Bytes from %s rate = %5.5f KBps dt = %7.1f us.\n",
 				rcvd, inet_ntop(AF_INET, &server.sin_addr, buff, sizeof(buff)),
 				rate, dt);
-
+				*/
+			i++;
 			rcvd = 0;
 			timeup = 1;
 		}
