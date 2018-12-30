@@ -23,7 +23,6 @@ int main (int argc, char *argv[]) {
 	struct hostent *hp;
 	struct sockaddr_in client;
 	struct sockaddr_in server;
-	struct timeval t, start, end;
 	char buff[BUFFSIZE];
 
 	struct timeval t1, t2;

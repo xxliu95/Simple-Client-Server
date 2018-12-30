@@ -22,8 +22,8 @@ struct args {
 	int client_fd;
 };
 
-int main (int argc, char *argv[]) {
-
+int main (int argc, char *argv[])
+{
 	/* Variables */
 	int server_fd;
 	int client_fd;
@@ -38,7 +38,7 @@ int main (int argc, char *argv[]) {
 
 	/* Delete previous qdisc */
 	char command[200];
-	sprintf(command, "tc qdisc del dev %s root", iface);
+	sprintf(command, "tc qdisc del dev %s root 2>/dev/null", iface);
 	system(command);
 
 	/* Creation of sockets */
@@ -90,19 +90,21 @@ int main (int argc, char *argv[]) {
 
 			if (read(client_fd,buff,BUFFSIZE) >= 0) {
 
-				int req_rate = atoi(buff);
+				char req_rate [10];
+				sprintf(req_rate,"%s",buff);
 				args->client = client;
 				args->client_fd = client_fd;
 
-				sprintf(command, "tc class add dev %s parent 1:1 classid 1:%d htb rate %dkbps ceil %dkbps &&\
+				sprintf(command, "tc class add dev %s parent 1:1 classid 1:%d htb rate %s ceil %s &&\
 				 		tc filter add dev %s protocol ip parent 1:0 prio 1 u32 \
 				 		match ip dst %s match ip dport %d 0xffff flowid 1:%d",
 						iface, handle, req_rate, req_rate, iface,
 						inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
 					 	ntohs(client.sin_port), handle);
 				system(command);
+				//printf("%s\n", command);
 
-				printf("Client %s:%d Connected. Rate %dkbps handle 1:%d\n",
+				printf("Client %s:%d Connected. Rate %s handle 1:%d\n",
 					inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
 					ntohs(client.sin_port),
 					req_rate, handle);
@@ -122,8 +124,8 @@ int main (int argc, char *argv[]) {
 /*
  * Every thread handles one connection
  */
-void *connection_handler (void *data) {
-
+void *connection_handler (void *data)
+{
 	pthread_detach(pthread_self());
 
 	struct args *args = (struct args *)data;

@@ -14,7 +14,7 @@
  */
 
 #define PORT 5000
-#define BUFFSIZE 1536
+#define BUFFSIZE 1024
 
 int main (int argc, char *argv[]) {
 
@@ -27,7 +27,7 @@ int main (int argc, char *argv[]) {
 	int max = 1;
 
 	if (argc != 4) {
-		perror("argument error");
+		perror("arguments error");
 		exit(1);
 	}
 
@@ -55,8 +55,6 @@ int main (int argc, char *argv[]) {
 		exit(1);
 	}
 
-
-
 	memset(&server, '0', sizeof(server));
 
 	server.sin_family = AF_INET;
@@ -71,6 +69,13 @@ int main (int argc, char *argv[]) {
 			exit(1);
 		}
 
+		/* Connection */
+		if (connect(sock[i], (struct sockaddr *) &server, sizeof(server)) < 0) {
+			perror("connect failed");
+			close(sock[i]);
+			exit(1);
+		}
+
 		/* Send Request */
 		strcpy(buff, argv[3]);
 		if (send(sock[i], buff, sizeof(buff), 0) < 0) {
@@ -78,14 +83,8 @@ int main (int argc, char *argv[]) {
 			close(sock[i]);
 			exit(1);
 		}
-
-		/* Connection */
-		if (connect(sock[i], (struct sockaddr *) &server, sizeof(server)) < 0) {
-			perror("connect failed");
-			close(sock[i]);
-			exit(1);
-		}
 	}
+
 
 	/* Infinite loop */
 	while (1) {
@@ -104,8 +103,8 @@ int main (int argc, char *argv[]) {
 			if (dt[i] >= 1000000.0) {
 				rate[i] = rcvd[i]*1000.0/dt[i];
 
-				printf("handle: %d %d Bytes from %s rate = %5.5f KBps dt = %7.1f us.\n",
-					i+10, rcvd[i], inet_ntop(AF_INET, &server.sin_addr, buff, sizeof(buff)),
+				printf("%d Bytes from %s rate = %5.5f KBps dt = %7.1f us.\n",
+					rcvd[i], inet_ntop(AF_INET, &server.sin_addr, buff, sizeof(buff)),
 					rate[i], dt[i]);
 
 				timeup[i] = 1;
