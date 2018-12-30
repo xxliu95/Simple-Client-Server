@@ -85,7 +85,8 @@ int main (int argc, char *argv[]) {
 		}
 	}
 
-
+	int j = 0;
+	printf("Bytes,ip,rate,dt\n");
 	/* Infinite loop */
 	while (1) {
 		for (i = 0; i < max; i++) {
@@ -100,14 +101,26 @@ int main (int argc, char *argv[]) {
 				gettimeofday(&t2[i], NULL);
 				dt[i] = ((t2[i].tv_sec - t1[i].tv_sec)*1000000.0 + (t2[i].tv_usec - t1[i].tv_usec)); // in microseconds
 			}
-			if (dt[i] >= 1000000.0) {
+			if (dt[i] >= 5000000.0) {
 				rate[i] = rcvd[i]*1000.0/dt[i];
 
+				j++;
+
+				printf("%d,%s,%5.5f,%7.1f\n",
+					rcvd[i], inet_ntop(AF_INET, &server.sin_addr, buff, sizeof(buff)),
+					rate[i], dt[i]);
+				/*
 				printf("%d Bytes from %s rate = %5.5f KBps dt = %7.1f us.\n",
 					rcvd[i], inet_ntop(AF_INET, &server.sin_addr, buff, sizeof(buff)),
 					rate[i], dt[i]);
+					*/
 
 				timeup[i] = 1;
+				if(j >= 10 * max) {
+					printf("Disconnected\n");
+					return 0;
+				}
+
 			}
 
 		}
