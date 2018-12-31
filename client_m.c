@@ -119,7 +119,7 @@ int main (int argc, char *argv[]) {
 					*/
 
 				timeup[i] = 1;
-				if(j >= 200 * max) {
+				if(j >= 60 * max) {
 					printf("Disconnected\n");
 					return 0;
 				}

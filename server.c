@@ -20,6 +20,8 @@ void *connection_handler (void *data);
 struct args {
 	struct sockaddr_in client;
 	int client_fd;
+	int handle;
+	char iface[10];
 };
 
 int main (int argc, char *argv[])
@@ -92,6 +94,8 @@ int main (int argc, char *argv[])
 
 				char req_rate [10];
 				sprintf(req_rate,"%s",buff);
+				sprintf(args->iface,"%s",iface);
+				args->handle = handle;
 				args->client = client;
 				args->client_fd = client_fd;
 
@@ -130,7 +134,12 @@ void *connection_handler (void *data)
 
 	struct args *args = (struct args *)data;
 	int client_fd = args->client_fd;
+	int handle = args->handle;
+	char iface[10];
+	sprintf(iface, "%s", args->iface);
 	struct sockaddr_in client = args->client;
+
+	char command[200];
 	char buff[BUFFSIZE];
 
 	free(data);
@@ -139,6 +148,14 @@ void *connection_handler (void *data)
 		if (send(client_fd, buff, sizeof(buff), MSG_NOSIGNAL) < 0) {
 			printf("Client %s:%d Disconnected\n",inet_ntop(AF_INET,
 				&client.sin_addr, buff, sizeof(buff)), ntohs(client.sin_port));
+
+			sprintf(command, "tc filter del dev %s protocol ip parent 1:0 prio 1 u32 \
+					match ip dst %s match ip dport %d 0xffff flowid 1:%d && \
+					tc class del dev %s parent 1:1 classid 1:%d",
+					iface, inet_ntop(AF_INET, &client.sin_addr, buff, sizeof(buff)),
+					ntohs(client.sin_port), handle, iface, handle);
+			printf("%s\n", command);
+			
 			close(client_fd);
 			break;
 		}
