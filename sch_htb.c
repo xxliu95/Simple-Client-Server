@@ -625,6 +625,12 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 	static long sum = 0;
 
 	struct timespec t1, t2;
+	static struct timespec start, end;
+	long t;
+	int j;
+
+	if (i == 0)
+		getnstimeofday(&start);
 	getnstimeofday(&t1);
 
 	if (cl) {
@@ -646,15 +652,20 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 
 	getnstimeofday(&t2);
 
-	if (i < 10000) {
-		dt[i] = t2.tv_nsec - t1.tv_nsec;
-		i++;
-	} else if (i == 10000) {
+	dt[i] = t2.tv_nsec - t1.tv_nsec;
+	i++;
+
+	getnstimeofday(&end);
+	t = ((long) (end.tv_sec * 1000000000 ) + end.tv_nsec ) -
+	    ((long) (start.tv_sec * 1000000000) + start.tv_nsec);
+
+	if (t >= 1000000000) {
 		sum = 0;
-		for (i = 0; i < 10000; i++) {
-			sum += dt[i];
+		for (j = 0; j < i; j++) {
+			sum += dt[j];
 		}
-		printk("dt = %ld", sum);
+
+		printk("dt = %ld t = %ld", sum, t);
 
 		i = 0;
 	}
