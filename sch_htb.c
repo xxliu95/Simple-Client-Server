@@ -401,8 +401,7 @@ static inline void htb_remove_class_from_row(struct htb_sched *q,
  */
 static void htb_activate_prios(struct htb_sched *q, struct htb_class *cl)
 {
-	struct htb_class *p = cl->parent;
-	long m, mask = cl->prio_activity;
+	long mask = cl->prio_activity;
 
 	if (cl->cmode == HTB_CAN_SEND && mask)
 		htb_add_class_to_row(q, cl, mask);
@@ -417,8 +416,7 @@ static void htb_activate_prios(struct htb_sched *q, struct htb_class *cl)
  */
 static void htb_deactivate_prios(struct htb_sched *q, struct htb_class *cl)
 {
-	struct htb_class *p = cl->parent;
-	long m, mask = cl->prio_activity;
+	long mask = cl->prio_activity;
 
 	if (cl->cmode == HTB_CAN_SEND && mask)
 		htb_remove_class_from_row(q, cl, mask);
@@ -456,7 +454,7 @@ htb_class_mode(struct htb_class *cl, s64 *diff)
 {
 	s64 toks;
 
-	if ((toks = (cl->tokens + *diff)) >= 0)
+	if ((toks = (cl->tokens + *diff)) >= htb_hiwater(cl))
 		return HTB_CAN_SEND;
 
 	*diff = -toks;
@@ -622,17 +620,16 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 	enum htb_cmode old_mode;
 	s64 diff;
 
-	while (cl) {
+	static int i = 0;
+	static long dt[10000];
+
+	struct timespec t1, t2;
+	getnstimeofday(&t1);
+
+	if (cl) {
 		diff = min_t(s64, q->now - cl->t_c, cl->mbuffer);
-		if (cl->level >= level) {
-			if (cl->level == level)
-				cl->xstats.lends++;
-			htb_accnt_tokens(cl, bytes, diff);
-		} else {
-			cl->xstats.borrows++;
-			cl->tokens += diff;	/* we moved t_c; update tokens */
-		}
-		htb_accnt_ctokens(cl, bytes, diff);
+		htb_accnt_tokens(cl, bytes, diff);
+
 		cl->t_c = q->now;
 
 		old_mode = cl->cmode;
@@ -644,12 +641,19 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 			if (cl->cmode != HTB_CAN_SEND)
 				htb_add_to_wait_tree(q, cl, diff);
 		}
+	}
 
-		/* update basic stats except for leaves which are already updated */
-		if (cl->level)
-			bstats_update(&cl->bstats, skb);
+	getnstimeofday(&t2);
 
-		cl = cl->parent;
+	if (i < 10000) {
+		dt[i] = t2.tv_nsec - t1.tv_nsec;
+		i++;
+	} else if (i == 10000) {
+		printk("dt");
+		for (i = 0; i < 10000; i++) {
+			printk("dt = ,%ld", dt[i]);
+		}
+		i = 0;
 	}
 }
 
