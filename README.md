@@ -1,2 +1,2 @@
-# TFG
-Just a repository for my TFG files.
+# Simple Client Server
+A simple client server in C language
